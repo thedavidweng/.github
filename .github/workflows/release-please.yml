@@ -1,0 +1,123 @@
+name: Release Please
+
+# Reusable release-please job for thedavidweng's repositories.
+#
+# A short-lived token from the thedavidweng-release GitHub App replaces both
+# the default GITHUB_TOKEN and personal access tokens. Release PRs and tags
+# created with an App token start other workflows (pull_request checks,
+# push-tag release builds), which GITHUB_TOKEN events never do.
+#
+# Caller:
+#
+#   jobs:
+#     release-please:
+#       permissions: {}
+#       uses: thedavidweng/.github/.github/workflows/release-please.yml@main
+#       with:
+#         app-id: ${{ vars.RELEASE_APP_ID }}
+#       secrets:
+#         app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+#
+# Post-release jobs read needs.release-please.outputs.release_created,
+# tag_name, version, and the rest. Monorepo path outputs such as
+# "packages/foo--release_created" are in outputs-json:
+#   fromJSON(needs.release-please.outputs.outputs-json)['packages/foo--release_created']
+
+on:
+  workflow_call:
+    inputs:
+      app-id:
+        description: App ID of the thedavidweng-release GitHub App
+        required: true
+        type: string
+      config-file:
+        description: Path to the release-please manifest config
+        required: false
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        description: Path to the release-please manifest
+        required: false
+        type: string
+        default: .release-please-manifest.json
+    secrets:
+      app-private-key:
+        description: Private key of the thedavidweng-release GitHub App
+        required: true
+    outputs:
+      release_created:
+        description: "'true' when the root package was released"
+        value: ${{ jobs.release-please.outputs.release_created }}
+      releases_created:
+        description: "'true' when any package was released"
+        value: ${{ jobs.release-please.outputs.releases_created }}
+      tag_name:
+        description: Tag of the root package release
+        value: ${{ jobs.release-please.outputs.tag_name }}
+      version:
+        description: Version of the root package release
+        value: ${{ jobs.release-please.outputs.version }}
+      major:
+        value: ${{ jobs.release-please.outputs.major }}
+      minor:
+        value: ${{ jobs.release-please.outputs.minor }}
+      patch:
+        value: ${{ jobs.release-please.outputs.patch }}
+      sha:
+        description: Commit SHA of the release
+        value: ${{ jobs.release-please.outputs.sha }}
+      upload_url:
+        value: ${{ jobs.release-please.outputs.upload_url }}
+      html_url:
+        value: ${{ jobs.release-please.outputs.html_url }}
+      paths_released:
+        description: JSON array of released package paths
+        value: ${{ jobs.release-please.outputs.paths_released }}
+      prs_created:
+        value: ${{ jobs.release-please.outputs.prs_created }}
+      pr:
+        description: JSON of the release PR, when one was opened or updated
+        value: ${{ jobs.release-please.outputs.pr }}
+      outputs-json:
+        description: Every release-please output as one JSON object
+        value: ${{ jobs.release-please.outputs.outputs-json }}
+
+permissions: {}
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Everything below uses the App token, so the job's GITHUB_TOKEN needs nothing.
+    permissions: {}
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      releases_created: ${{ steps.rp.outputs.releases_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+      major: ${{ steps.rp.outputs.major }}
+      minor: ${{ steps.rp.outputs.minor }}
+      patch: ${{ steps.rp.outputs.patch }}
+      sha: ${{ steps.rp.outputs.sha }}
+      upload_url: ${{ steps.rp.outputs.upload_url }}
+      html_url: ${{ steps.rp.outputs.html_url }}
+      paths_released: ${{ steps.rp.outputs.paths_released }}
+      prs_created: ${{ steps.rp.outputs.prs_created }}
+      pr: ${{ steps.rp.outputs.pr }}
+      outputs-json: ${{ toJSON(steps.rp.outputs) }}
+    steps:
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ inputs.app-id }}
+          private-key: ${{ secrets.app-private-key }}
+
+      - name: Run release-please
+        id: rp
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
