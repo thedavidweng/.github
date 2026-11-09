@@ -77,7 +77,9 @@ check the exit status.
 Every repository with Dependabot uses the same auto-merge workflow:
 copy `templates/dependabot-automerge.yml` from this repository to
 `.github/workflows/dependabot-automerge.yml`. It calls the reusable
-`.github/workflows/dependabot-automerge.yml`.
+`.github/workflows/dependabot-automerge.yml`. In the copy, replace `SHA`
+with the full commit SHA of a published tag of this repository and `vX`
+with that tag.
 
 - Eligible: semver patch and minor updates of any dependency (production,
   development or indirect), and GitHub Actions pin refreshes.

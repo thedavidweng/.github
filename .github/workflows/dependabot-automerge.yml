@@ -35,8 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # gh pr merge --auto
+      pull-requests: write # gh pr review --approve and gh pr merge --auto
     steps:
       - name: Dependabot metadata
         id: meta
@@ -92,7 +92,7 @@ jobs:
           ruleset_checks=$(gh api "repos/$REPO/rules/branches/$BASE_REF" \
             --jq '[.[] | select(.type == "required_status_checks")] | length')
           classic_checks=$(gh api "repos/$REPO/branches/$BASE_REF" \
-            --jq '(.protection.required_status_checks.contexts // []) | length')
+            --jq '.protection.required_status_checks // {} | [(.contexts // [] | length), (.checks // [] | length)] | max')
           if [ "$ruleset_checks" = "0" ] && [ "$classic_checks" = "0" ]; then
             echo "skip (no required status checks on $BASE_REF): $summary"
             exit 0

@@ -1,4 +1,6 @@
 # Copy to .github/workflows/dependabot-automerge.yml in each repository.
+# Replace SHA below with the full commit SHA of a published tag of
+# thedavidweng/.github and vX with that tag; the placeholder does not resolve.
 # Keep the ref pinned to a full commit SHA with its tag as a comment, so
 # Dependabot can bump it.
 name: Dependabot auto-merge
@@ -17,8 +19,8 @@ jobs:
     name: Dependabot
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # enable auto-merge
+      pull-requests: write # approve and enable auto-merge
     uses: thedavidweng/.github/.github/workflows/dependabot-automerge.yml@SHA # vX
     # Optional:
     # with:
