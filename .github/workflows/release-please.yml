@@ -113,6 +113,11 @@ jobs:
         with:
           app-id: ${{ inputs.app-id }}
           private-key: ${{ secrets.app-private-key }}
+          # Narrow the token to what release-please uses: commits, tags and
+          # releases (contents), and the release PR with its labels and
+          # comments (pull-requests).
+          permission-contents: write
+          permission-pull-requests: write
 
       - name: Run release-please
         id: rp
