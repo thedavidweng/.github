@@ -1,0 +1,108 @@
+name: Dependabot auto-merge
+
+# Reusable workflow. Callers run it from `pull_request_target` (see
+# templates/dependabot-automerge.yml) so GITHUB_TOKEN can approve and enable
+# auto-merge on Dependabot PRs. It never checks out or runs PR code: every
+# decision comes from Dependabot metadata and the GitHub API.
+#
+# Policy:
+# - semver patch and minor updates, any dependency type, are eligible
+# - GitHub Actions SHA pin refreshes (empty update-type) are eligible
+# - majors and anything unclassified stay open for a human
+# - names in `deny` and ecosystems in `skip-ecosystems` stay open for a human
+# - auto-merge is only enabled when the base branch has required status
+#   checks, so GitHub's native auto-merge waits for them to pass
+on:
+  workflow_call:
+    inputs:
+      deny:
+        description: Space-separated dependency names that always need a human.
+        type: string
+        default: googleapis/release-please-action dependabot/fetch-metadata
+      skip-ecosystems:
+        description: Space-separated package ecosystems that always need a human (for example `swift`).
+        type: string
+        default: ""
+
+permissions: {}
+
+jobs:
+  automerge:
+    name: Enable auto-merge
+    if: >
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # gh pr merge --auto
+      pull-requests: write # gh pr review --approve and gh pr merge --auto
+    steps:
+      - name: Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Approve and enable auto-merge for eligible updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          DENY: ${{ inputs.deny }}
+          SKIP_ECOSYSTEMS: ${{ inputs.skip-ecosystems }}
+          DEP_NAMES: ${{ steps.meta.outputs.dependency-names }}
+          PKG_ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          DEP_TYPE: ${{ steps.meta.outputs.dependency-type }}
+        run: |
+          set -euo pipefail
+          summary="ecosystem=$PKG_ECOSYSTEM update-type=$UPDATE_TYPE dependency-type=$DEP_TYPE names=$DEP_NAMES"
+
+          dep_names=",${DEP_NAMES// /},"
+          for blocked in $DENY; do
+            case "$dep_names" in
+              *",${blocked},"*) echo "skip (deny list: $blocked): $summary"; exit 0 ;;
+            esac
+          done
+          for eco in $SKIP_ECOSYSTEMS; do
+            if [ "$eco" = "$PKG_ECOSYSTEM" ]; then
+              echo "skip (ecosystem needs a human): $summary"
+              exit 0
+            fi
+          done
+
+          case "$UPDATE_TYPE" in
+            version-update:semver-patch|version-update:semver-minor) ;;
+            "")
+              # Dependabot reports no update-type when it moves a SHA-pinned
+              # action to a newer commit of the same ref.
+              case "$PKG_ECOSYSTEM" in
+                github-actions|github_actions) ;;
+                *) echo "skip (unclassified update): $summary"; exit 0 ;;
+              esac
+              ;;
+            *) echo "skip (major update): $summary"; exit 0 ;;
+          esac
+
+          # Without required checks, `gh pr merge --auto` merges at once.
+          # Leave the PR for a human instead of merging untested.
+          ruleset_checks=$(gh api "repos/$REPO/rules/branches/$BASE_REF" \
+            --jq '[.[] | select(.type == "required_status_checks")] | length')
+          classic_checks=$(gh api "repos/$REPO/branches/$BASE_REF" \
+            --jq '.protection.required_status_checks // {} | [(.contexts // [] | length), (.checks // [] | length)] | max')
+          if [ "$ruleset_checks" = "0" ] && [ "$classic_checks" = "0" ]; then
+            echo "skip (no required status checks on $BASE_REF): $summary"
+            exit 0
+          fi
+
+          # A required review cannot be given by the PR author. Approving needs
+          # "Allow GitHub Actions to create and approve pull requests".
+          if [ "$(gh pr view "$PR_URL" --json reviewDecision --jq .reviewDecision)" = "REVIEW_REQUIRED" ]; then
+            gh pr review "$PR_URL" --approve --body "Automated approval: eligible Dependabot update; required checks still gate the merge."
+          fi
+
+          echo "enable auto-merge: $summary"
+          gh pr merge "$PR_URL" --auto --squash --match-head-commit "$HEAD_SHA"
