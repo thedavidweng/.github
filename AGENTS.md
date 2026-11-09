@@ -98,6 +98,43 @@ Native auto-merge does not wait for review bots. A CodeRabbit or Kilo finding
 on a Dependabot PR does not block the merge by itself, so check open
 Dependabot PRs against the review rules above when you work in a repository.
 
+## Repository settings
+
+Every non-fork, non-archived repository uses these settings. Change them
+here first, then in the repositories.
+
+- Default branch: `main`.
+- Branch protection on `main` (classic protection): required status checks
+  (not strict), no required reviews, no required conversation resolution, no
+  force pushes, no deletions, admins not enforced. A rule that only the
+  owner's admin rights can satisfy is a misconfiguration, not a safeguard.
+  Every repository with CI requires at least its `Workflow lint` (or
+  equivalent) check.
+- Merging: squash only. Squash commit title `PR_TITLE`, message `BLANK`
+  (no generated body, so no `Co-authored-by` trailers). Auto-merge allowed,
+  "Always suggest updating pull request branches" on, head branches deleted
+  after merge.
+- Actions: default `GITHUB_TOKEN` permissions read-only; every workflow
+  declares its own `permissions`. "Allow GitHub Actions to create and approve
+  pull requests" is on only where a workflow opens PRs with `GITHUB_TOKEN`.
+- Security: Dependabot alerts and Dependabot security updates on. Public
+  repositories: secret scanning and push protection on.
+- Dependency updates: Dependabot (`.github/dependabot.yml`) plus the shared
+  auto-merge workflow above.
+- Reviews: CodeRabbit and Kilo run from their account-level settings. Add a
+  repository `.coderabbit.yaml` only for repository-specific instructions.
+
+Per-type differences:
+
+- Homebrew taps: no required checks on `main` (bump and sync PRs are merged by
+  their own checked workflows), so the Dependabot workflow skips them.
+- AGPL projects (OpenKara, tg-drive, sukiru, vapourfly and similar): a CLA
+  workflow; keep `thedavidweng-release[bot]` and `dependabot[bot]` on its
+  allowlist.
+- Repositories without CI keep a required review until they get a
+  `Workflow lint` check, because removing it would leave `main` with no
+  protection at all.
+
 ## Releases
 
 Repositories that use release-please call `.github/workflows/release-please.yml`
