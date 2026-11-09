@@ -1,0 +1,25 @@
+# Copy to .github/workflows/dependabot-automerge.yml in each repository.
+# Keep the ref pinned to a full commit SHA with its tag as a comment, so
+# Dependabot can bump it.
+name: Dependabot auto-merge
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] Metadata only; the called workflow never checks out PR code.
+
+permissions: {}
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  automerge:
+    name: Dependabot
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: thedavidweng/.github/.github/workflows/dependabot-automerge.yml@SHA # vX
+    # Optional:
+    # with:
+    #   skip-ecosystems: swift
