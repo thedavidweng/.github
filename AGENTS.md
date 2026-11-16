@@ -130,6 +130,11 @@ Per-type differences:
 
 - Homebrew taps: no required checks on `main` (bump and sync PRs are merged by
   their own checked workflows), so the Dependabot workflow skips them.
+- This repository: Dependabot keeps the pins in the shared workflows current
+  and `Workflow lint` is the required check, but there is no auto-merge
+  caller, because `.github/workflows/dependabot-automerge.yml` is the shared
+  workflow itself. Merge its Dependabot PRs by hand once they are green, then
+  publish a new tag before bumping the callers.
 - AGPL projects (OpenKara, tg-drive, sukiru, vapourfly and similar): a CLA
   workflow; keep `thedavidweng-release[bot]` and `dependabot[bot]` on its
   allowlist.
