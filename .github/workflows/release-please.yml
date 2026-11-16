@@ -111,7 +111,10 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ inputs.app-id }}
+          # `app-id` is deprecated; the action reads `client-id` first and
+          # signs the JWT with it either way, and GitHub accepts the App ID
+          # there as well as the Client ID.
+          client-id: ${{ inputs.app-id }}
           private-key: ${{ secrets.app-private-key }}
           # Narrow the token to what release-please uses: commits, tags and
           # releases (contents), and the release PR with its labels and
