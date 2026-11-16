@@ -51,6 +51,8 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           DENY: ${{ inputs.deny }}
           SKIP_ECOSYSTEMS: ${{ inputs.skip-ecosystems }}
           DEP_NAMES: ${{ steps.meta.outputs.dependency-names }}
@@ -105,4 +107,8 @@ jobs:
           fi
 
           echo "enable auto-merge: $summary"
-          gh pr merge "$PR_URL" --auto --squash --match-head-commit "$HEAD_SHA"
+          # An explicit empty body keeps the squash commit to the PR title.
+          # Without it, auto-merge copies Dependabot's Signed-off-by and adds
+          # Co-authored-by trailers even when the repository default is BLANK.
+          gh pr merge "$PR_URL" --auto --squash --match-head-commit "$HEAD_SHA" \
+            --subject "$PR_TITLE (#$PR_NUMBER)" --body ""
